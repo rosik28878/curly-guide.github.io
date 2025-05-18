@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Школьное приложение (полная версия)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { font-family: Arial, sans-serif; background:#f5f5f5; }
+    header { background:#fff; padding:10px; display:flex; justify-content:space-between; align-items:center; 
+             box-shadow:0 1px 3px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
+    header h1 { font-size:1.2em; }
+    header .menu-btn { font-size:1.5em; cursor:pointer; }
+    .content { padding:10px; margin-bottom:60px; }
+    .hidden { display:none; }
+    /* Shared components */
+    .bottom-nav { display:flex; position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ddd; }
+    .bottom-nav button { flex:1; padding:8px 0; border:none; background:none; font-size:0.9em; cursor:pointer; }
+    .bottom-nav button.active { background:#eee; }
+    .overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; }
+    .menu { position:fixed; top:0; right:0; width:80%; max-width:300px; height:100%; background:#fff; padding:20px; box-shadow:-2px 0 5px rgba(0,0,0,0.2); }
+    .menu h2 { margin-bottom:20px; }
+    .menu ul { list-style:none; padding-left:0; }
+    .menu li { padding:10px 0; border-bottom:1px solid #eee; cursor:pointer; }
+
+    /* Schedule */
+    .days { display:flex; overflow-x:auto; margin-bottom:10px; }
+    .day { flex:0 0 auto; padding:8px 12px; margin-right:6px; background:#fff; border-radius:20px; cursor:pointer; }
+    .day.active { background:#6200ea; color:#fff; }
+    .schedule { background:#fff; border-radius:8px; padding:10px; margin-bottom:10px; }
+    .lesson-item { padding:8px; border-bottom:1px solid #eee; cursor:pointer; }
+    .lesson-item:last-child { border:none; }
+    .lesson-item h4 { font-size:1em; margin-bottom:4px; }
+
+    /* Leaderboard */
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    table, th, td { border:1px solid #ccc; }
+    th, td { padding:8px; text-align:left; }
+
+    /* Lessons & Tests */
+    .lesson-test { margin-bottom:20px; background:#fff; padding:10px; border-radius:6px; }
+    .lesson-test h4 { margin-bottom:8px; }
+    .question { margin-bottom:10px; }
+    .options button { display:block; margin:5px 0; padding:8px; width:100%; border:1px solid #ccc; background:#f0f0f0; cursor:pointer; }
+    .options button.correct { background:#8bc34a; }
+    .options button.incorrect { background:#f44336; }
+    .tabs { display:flex; margin-bottom:10px; }
+    .tabs button { flex:1; padding:8px; border:none; background:#eee; cursor:pointer; }
+    .tabs button.active { background:#6200ea; color:#fff; }
+    .tab-content { background:#f9f9f9; padding:10px; border-radius:4px; }
+    .mini-game { display:block; width:100%; padding:10px; text-align:center; background:#6200ea; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+
+    /* Grades & Tasks */
+    .grade-item, .task-item { background:#fff; padding:10px; margin:6px 0; border-radius:4px; display:flex; justify-content:space-between; align-items:center; }
+    .grade-item .sub { font-size:0.8em; color:#666; }
+
+    /* Progress */
+    .subject-progress { margin-bottom:20px; }
+    .subject-progress h3 { margin-bottom:8px; }
+    .progress-bar { display:flex; align-items:center; }
+    .progress-bar .label { font-size:0.8em; color:#666; margin:0 10px; }
+    .progress-bar .dot { width:12px; height:12px; border-radius:50%; background:#ccc; margin-right:8px; cursor:pointer; }
+    .progress-bar .dot.completed { background:#8bc34a; }
+    #progress-detail { background:#fff; padding:10px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Учебное приложение</h1>
+  <div class="menu-btn" onclick="toggleMenu()">☰</div>
+</header>
+
+<!-- Расписание -->
+<div class="content" id="screen-schedule">
+  <div class="days" id="days"></div>
+  <div id="schedule-list"></div>
+</div>
+
+<!-- Таблица лидеров -->
+<div class="content hidden" id="screen-leaderboard">
+  <h2>Таблица лидеров</h2>
+  <table>
+    <thead><tr><th>Место</th><th>Имя</th><th>Очки</th></tr></thead>
+    <tbody id="leaderboard-body"></tbody>
+  </table>
+</div>
+
+<!-- Уроки -->
+<div class="content hidden" id="screen-lessons">
+  <h2>Уроки с тестами</h2>
+  <div id="lessons-container"></div>
+</div>
+
+<!-- Оценки -->
+<div class="content hidden" id="screen-grades">
+  <h2>Оценки</h2>
+  <div class="grade-item"><div>История</div><div><strong>5</strong><div class="sub">16 мая</div></div></div>
+  <div class="grade-item"><div>Английский язык</div><div><strong>3</strong><div class="sub">15 мая</div></div></div>
+  <div class="grade-item"><div>Химия</div><div><strong>4</strong><div class="sub">14 мая</div></div></div>
+</div>
+
+<!-- Задания -->
+<div class="content hidden" id="screen-tasks">
+  <h2>Задания</h2>
+  <div class="task-item">История: тест по революции</div>
+  <div class="task-item">Геометрия: контрольная</div>
+  <div class="task-item">Английский: эссе</div>
+</div>
+
+<!-- Прогресс -->
+<div class="content hidden" id="screen-progress">
+  <h2>Прогресс по предметам</h2>
+  <div id="progress-container"></div>
+  <div id="progress-detail"><p>Нажмите на точку, чтобы увидеть тему.</p></div>
+</div>
+
+<!-- Меню профиля -->
+<div class="overlay" id="overlay" onclick="toggleMenu()">
+  <div class="menu" onclick="event.stopPropagation()">
+    <h2>Профиль</h2>
+    <ul>
+      <li>Поддержка</li>
+      <li>Частые вопросы</li>
+      <li>О проекте</li>
+      <li>Обновления</li>
+      <li>Настройки</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Детали урока -->
+<div class="lesson-detail hidden" id="lesson-detail">
+  <button onclick="closeLesson()" style="margin-bottom:10px;">← Назад</button>
+  <h2 id="lesson-title"></h2>
+  <div class="tabs">
+    <button id="tab-info" class="active" onclick="showLessonTab('info')">Урок</button>
+    <button id="tab-tasks-detail" onclick="showLessonTab('tasks')">Задания</button>
+  </div>
+  <div class="tab-content" id="content-info">
+    <p><strong>Учитель:</strong> <span id="teacher-name"></span></p>
+    <p>Материалы для изучения: ...</p>
+  </div>
+  <div class="tab-content hidden" id="content-tasks-detail">
+    <p>Домашнее задание: ...</p>
+    <button class="mini-game">Мини-игра</button>
+  </div>
+</div>
+
+<!-- Нижняя навигация -->
+<div class="bottom-nav">
+  <button onclick="showScreen('schedule')" class="active">Расписание</button>
+  <button onclick="showScreen('leaderboard')">Лидерборд</button>
+  <button onclick="showScreen('lessons')">Уроки</button>
+  <button onclick="showScreen('grades')">Оценки</button>
+  <button onclick="showScreen('tasks')">Задания</button>
+  <button onclick="showScreen('progress')">Прогресс</button>
+  <button onclick="toggleMenu()">Профиль</button>
+</div>
+
+<script>
+  // Расписание
+  const days = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  const schedule = {
+    'Понедельник': ['Алгебра (1,2)','Литература (3,4)','ОБЖ (5,6)'],
+    'Вторник': ['Обществознание (1,2)','Основы экономики (3,4)','Геометрия (5,6)'],
+    'Среда': ['Вероятность и статистика (1)','Теория эссе (2)','Литература (3)','Обществознание (4,5)','Химия (6,7)'],
+    'Четверг': ['Физкультура (1,2)','Русский язык (3,4)','Алгебра (5,6)'],
+    'Пятница': ['Геометрия (1)','История (2,3)','Английский язык (4,5)','Биология (6)'],
+    'Суббота': [], 'Воскресенье': []
+  };
+  const teachers = {
+    'Алгебра (1,2)':'Иванов И.И.','Литература (3,4)':'Петрова А.С.','ОБЖ (5,6)':'Смирнов В.В.',
+    'Обществознание (1,2)':'Кузнецова Е.Ю.','Основы экономики (3,4)':'Сидоров П.П.','Геометрия (5,6)':'Лебедева Т.Т.',
+    'Вероятность и статистика (1)':'Морозова Л.Б.','Теория эссе (2)':'Николаев К.К.','Литература (3)':'Егоров В.В.',
+    'Обществознание (4,5)':'Фролова Н.Н.','Химия (6,7)':'Громова А.А.','Физкультура (1,2)':'Третьяков Ю.Ю.',
+    'Русский язык (3,4)':'Малышева О.О.','Алгебра (5,6)':'Васильев С.С.','История (2,3)':'Марченко Е.В.',
+    'Английский язык (4,5)':'Савичев Я.С.','Биология (6)':'Климова Е.Е.'
+  };
+
+  function initSchedule() {
+    const daysContainer = document.getElementById('days');
+    days.forEach(day => {
+      const btn = document.createElement('div');
+      btn.className = 'day';
+      btn.innerText = day.slice(0,2);
+      btn.onclick = () => selectDay(day, btn);
+      daysContainer.appendChild(btn);
+    });
+    selectDay('Понедельник', document.querySelector('.day'));
+  }
+  function selectDay(day, btn) {
+    document.querySelectorAll('.day').forEach(d=>d.classList.remove('active'));
+    btn.classList.add('active');
+    const list = document.getElementById('schedule-list');
+    list.innerHTML = schedule[day].length ? 
+      schedule[day].map(it=>`<div class="schedule"><div class="lesson-item" onclick="openLesson('${it}')"><h4>${it.split(' ')[0]}</h4><div>${it}</div></div></div>`).join('') :
+      '<p>Уроков нет</p>';
+  }
+  function openLesson(lesson) {
+    document.querySelectorAll('.content, .lesson-detail').forEach(el=>el.classList.add('hidden'));
+    document.getElementById('lesson-detail').classList.remove('hidden');
+    document.getElementById('lesson-title').innerText = lesson;
+    document.getElementById('teacher-name').innerText = teachers[lesson] || '';
+    showLessonTab('info');
+  }
+  function closeLesson() {
+    document.querySelectorAll('.lesson-detail').forEach(el=>el.classList.add('hidden'));
+    showScreen('schedule');
+  }
+  function showLessonTab(tab) {
+    document.getElementById('tab-info').classList.toggle('active', tab==='info');
+    document.getElementById('tab-tasks-detail').classList.toggle('active', tab==='tasks');
+    document.getElementById('content-info').classList.toggle('hidden', tab!=='info');
+    document.getElementById('content-tasks-detail').classList.toggle('hidden', tab!=='tasks');
+  }
+
+  // Лидерборд
+  let yourScore = 65;
+  const leaderboard = Array.from({length:27}, (_,i)=>({
+    name: i===4?'Вы':'Участник'+(i+1),
+    score: i===4?yourScore:Math.floor(Math.random()*101)
+  })).sort((a,b)=>b.score-a.score);
+  function renderLeaderboard() {
+    leaderboard.find(p=>p.name==='Вы').score = yourScore;
+    leaderboard.sort((a,b)=>b.score-b.score);
+    document.getElementById('leaderboard-body').innerHTML =
+      leaderboard.map((p,i)=>`<tr><td>${i+1}</td><td>${p.name}</td><td>${p.score}</td></tr>`).join('');
+  }
+
+  // Уроки и тесты
+  const lessonsData = [
+    { title:"Новейшая история", subject:"История", questions:[
+      { q:"Год Революции 1917?", opts:["1916","1917","1918"], correct:1 },
+      { q:"Начало ВОВ?", opts:["1939","1941","1945"], correct:1 },
+      { q:"СССР образован в?", opts:["1920","1922","1924"], correct:1 },
+      { q:"Год конца WWII?", opts:["1945","1946","1947"], correct:0 },
+      { q:"Гласность?", opts:["Хрущёв","Брежнев","Горбачёв"], correct:2 }
+    ]},
+    { title:"Треугольники", subject:"Геометрия", questions:[
+      { q:"Сумма углов = ?", opts:["180","360","90"], correct:0 },
+      { q:"Равносторонний?", opts:["60","90","120"], correct:0 },
+      { q:"Прямой?", opts:["90","60","120"], correct:0 },
+      { q:"Тупой?", opts:[">90","<90","=90"], correct:0 },
+      { q:"Острый?", opts:["<90","=90",">90"], correct:0 }
+    ]}
+  ];
+  function renderLessons() {
+    document.getElementById('lessons-container').innerHTML =
+      lessonsData.map(test=>
+        `<div class="lesson-test"><h4>${test.subject}: ${test.title}</h4>` +
+        test.questions.map((q,i)=>
+          `<div class="question"><strong>${i+1}. ${q.q}</strong><div class="options">`+
+          q.opts.map((opt,idx)=>`<button onclick="handleAnswer(this,${idx},${q.correct})">${opt}</button>`).join('')+
+          `</div></div>`
+        ).join('')+
+        `</div>`
+      ).join('');
+  }
+  function handleAnswer(btn, idx, correct) {
+    if(idx===correct) btn.classList.add('correct'), yourScore++;
+    else btn.classList.add('incorrect');
+    Array.from(btn.parentNode.children).forEach(b=>b.disabled=true);
+    renderLeaderboard();
+  }
+
+  // Прогресс
+  const subjects = ['Алгебра','История','Геометрия','Физика','Биология'];
+  const progressData = {};
+  subjects.forEach(subj=>{
+    progressData[subj] = Array.from({length:16}, (_,i)=>({
+      topic: `Тема ${i+1}`, completed: i<Math.floor(Math.random()*17)
+    }));
+  });
+  function renderProgress() {
+    const container = document.getElementById('progress-container');
+    container.innerHTML = subjects.map(subj=>{
+      const dots = progressData[subj].map((it,idx)=>
+        `<div class="dot${it.completed?' completed':''}" onclick="showTopicDetail('${subj}',${idx})" title="${it.topic}"></div>`
+      ).join('');
+      return `<div class="subject-progress"><h3>${subj}</h3><div class="progress-bar"><span class="label">Начало</span>${dots}<span class="label">Конец</span></div></div>`;
+    }).join('');
+  }
+  function showTopicDetail(subj, idx) {
+    const it = progressData[subj][idx];
+    document.getElementById('progress-detail').innerHTML =
+      `<h4>${subj}</h4><p>Тема: ${it.topic}</p><p>Статус: ${it.completed?'Пройдено':'Не пройдено'}</p>`;
+  }
+
+  // Навигация
+  function showScreen(screen) {
+    document.querySelectorAll('.content, .lesson-detail').forEach(el=>el.classList.add('hidden'));
+    document.querySelectorAll('.bottom-nav button').forEach(btn=>btn.classList.remove('active'));
+    if(screen==='schedule') initSchedule();
+    else if(screen==='leaderboard') renderLeaderboard();
+    else if(screen==='lessons') renderLessons();
+    else if(screen==='progress') renderProgress();
+    document.getElementById('screen-'+screen).classList.remove('hidden');
+    document.querySelector(`.bottom-nav button[onclick="showScreen('${screen}')"]`).classList.add('active');
+  }
+
+  function toggleMenu() {
+    const ov = document.getElementById('overlay');
+    ov.style.display = ov.style.display==='block'?'none':'block';
+  }
+
+  window.onload = ()=>{
+    initSchedule();
+    renderLeaderboard();
+    renderLessons();
+    renderProgress();
+  };
+</script>
+
+</body>
+</html>
